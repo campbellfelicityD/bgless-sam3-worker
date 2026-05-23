@@ -1,0 +1,33 @@
+# RunPod handler runtime — CUDA 12.4 + Python 3.11 image base
+# Versions pinned to a known-good combo; bump deliberately.
+
+# RunPod SDK
+runpod>=1.7,<2
+
+# Deep learning core
+torch==2.5.1
+torchvision==0.20.1
+torchaudio==2.5.1
+
+# SAM3 (Meta) — install from git until PyPI release
+# git+https://github.com/facebookresearch/sam3.git@main
+# placeholder dep set installed from git in Dockerfile to keep this file pip-only
+
+# MatAnyone (video matting refinement)
+# git+https://github.com/pq-yang/MatAnyone.git@main  (installed in Dockerfile)
+
+# Image / video IO
+opencv-python-headless>=4.10,<5
+pillow>=10,<12
+numpy>=1.26,<2.2
+imageio[ffmpeg]>=2.34,<3
+
+# HTTP + R2 (S3 compatible)
+requests>=2.31,<3
+boto3>=1.35,<2
+
+# Validation
+pydantic>=2.7,<3
+
+# Observability
+sentry-sdk>=2.10,<3
