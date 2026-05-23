@@ -1,5 +1,5 @@
 # SAM3 + MatAnyone RunPod Serverless worker
-# Built by .github/workflows/build.yml on GitHub Actions (amd64)
+# Python 3.10 (Ubuntu 22.04 default) — cchardet (sam3 transitive dep) lacks 3.11 wheels.
 
 FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
@@ -14,12 +14,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     MATANYONE_WEIGHTS_DIR=/runpod-volume/matanyone
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      python3.11 python3.11-venv python3-pip python3.11-dev \
+      python3 python3-venv python3-pip python3-dev \
       git curl ca-certificates \
       ffmpeg libsm6 libxext6 build-essential \
-    && rm -rf /var/lib/apt/lists/* \
-    && update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
 
@@ -40,4 +38,4 @@ COPY sam3/encoder.py    /workspace/encoder.py
 
 EXPOSE 8000
 
-CMD ["python", "-u", "handler.py"]
+CMD ["python3", "-u", "handler.py"]
