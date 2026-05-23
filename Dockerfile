@@ -8,10 +8,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    HF_HOME=/runpod-volume/hf-cache \
-    TORCH_HOME=/runpod-volume/torch-cache \
-    SAM3_WEIGHTS_DIR=/runpod-volume/sam3 \
-    MATANYONE_WEIGHTS_DIR=/runpod-volume/matanyone
+    HF_HOME=/workspace/hf-cache \
+    TORCH_HOME=/workspace/torch-cache \
+    SAM3_WEIGHTS_DIR=/workspace/sam3 \
+    MATANYONE_WEIGHTS_DIR=/workspace/matanyone
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 python3-venv python3-pip python3-dev \
