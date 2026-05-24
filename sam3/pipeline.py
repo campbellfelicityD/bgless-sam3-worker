@@ -337,7 +337,13 @@ def _refine_with_matanyone(
 def run_pipeline(inp: HandlerInput) -> HandlerOutput:
     timings = StageTimings()
     workdir = Path(tempfile.mkdtemp(prefix=f"sam3-{inp.job_id}-"))
-    src_path = workdir / "input.bin"
+    # Source video lives in a subdirectory so its basename (e.g. "input.mp4")
+    # doesn't collide with MatAnyone's save-folder naming scheme, which
+    # mkdir()s `<output_path>/<basename(input)>/` and chokes on a file at
+    # the same path (Errno 20 NotADirectoryError).
+    src_dir = workdir / "src"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    src_path = src_dir / "input.mp4"
     final_src = src_path
 
     try:
