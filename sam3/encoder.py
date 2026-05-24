@@ -89,17 +89,20 @@ def encode(
     base = ["ffmpeg", "-y", "-i", str(source), "-i", str(alpha)]
 
     if fmt == "webm" and transparent:
-        # Take source RGB, alpha from alpha video luma → yuva420p
-        # Scale alpha to match source dims (MatAnyone may downscale alpha).
-        filt = (
-            "[1:v][0:v]scale2ref=w=iw:h=ih[a0][c0];"
-            "[c0]format=gbrap,setpts=PTS-STARTPTS[c];"
-            "[a0]format=gray,setpts=PTS-STARTPTS[a];"
-            "[c][a]alphamerge"
-        )
+        # Scale source first (to enforce max_dimension), then scale alpha to
+        # match scaled source dims, then merge. alphamerge output keeps alpha
+        # because both inputs are alpha-aware; format=yuva420p locks the
+        # pix_fmt the encoder will use.
+        src_chain = "[0:v]format=yuva420p"
         if scale:
-            filt += f",{scale}"
-        filt += ",format=yuva420p[v]"
+            src_chain += f",{scale}"
+        filt = (
+            f"{src_chain}[src];"
+            "[1:v][src]scale2ref=w=iw:h=ih[a0][c0];"
+            "[c0]format=yuva420p[c];"
+            "[a0]format=gray[a];"
+            "[c][a]alphamerge,format=yuva420p[v]"
+        )
         cmd = base + [
             "-filter_complex", filt,
             "-map", "[v]", *audio_args,
@@ -108,15 +111,16 @@ def encode(
             str(dest),
         ]
     elif fmt == "mov" and transparent:
-        filt = (
-            "[1:v][0:v]scale2ref=w=iw:h=ih[a0][c0];"
-            "[c0]format=gbrap,setpts=PTS-STARTPTS[c];"
-            "[a0]format=gray,setpts=PTS-STARTPTS[a];"
-            "[c][a]alphamerge"
-        )
+        src_chain = "[0:v]format=yuva444p10le"
         if scale:
-            filt += f",{scale}"
-        filt += ",format=yuva444p10le[v]"
+            src_chain += f",{scale}"
+        filt = (
+            f"{src_chain}[src];"
+            "[1:v][src]scale2ref=w=iw:h=ih[a0][c0];"
+            "[c0]format=yuva444p10le[c];"
+            "[a0]format=gray[a];"
+            "[c][a]alphamerge,format=yuva444p10le[v]"
+        )
         cmd = base + [
             "-filter_complex", filt,
             "-map", "[v]", *audio_args,
