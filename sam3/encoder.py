@@ -90,9 +90,11 @@ def encode(
 
     if fmt == "webm" and transparent:
         # Take source RGB, alpha from alpha video luma → yuva420p
+        # Scale alpha to match source dims (MatAnyone may downscale alpha).
         filt = (
-            "[0:v]format=gbrap,setpts=PTS-STARTPTS[c];"
-            "[1:v]format=gray,setpts=PTS-STARTPTS[a];"
+            "[1:v][0:v]scale2ref=w=iw:h=ih[a0][c0];"
+            "[c0]format=gbrap,setpts=PTS-STARTPTS[c];"
+            "[a0]format=gray,setpts=PTS-STARTPTS[a];"
             "[c][a]alphamerge"
         )
         if scale:
@@ -107,8 +109,9 @@ def encode(
         ]
     elif fmt == "mov" and transparent:
         filt = (
-            "[0:v]format=gbrap,setpts=PTS-STARTPTS[c];"
-            "[1:v]format=gray,setpts=PTS-STARTPTS[a];"
+            "[1:v][0:v]scale2ref=w=iw:h=ih[a0][c0];"
+            "[c0]format=gbrap,setpts=PTS-STARTPTS[c];"
+            "[a0]format=gray,setpts=PTS-STARTPTS[a];"
             "[c][a]alphamerge"
         )
         if scale:
@@ -158,8 +161,9 @@ def encode(
         ]
     elif fmt == "webp":
         filt = (
-            "[0:v]format=rgba[c];"
-            "[1:v]format=gray[a];"
+            "[1:v][0:v]scale2ref=w=iw:h=ih[a0][c0];"
+            "[c0]format=rgba[c];"
+            "[a0]format=gray[a];"
             "[c][a]alphamerge"
         )
         if scale:
