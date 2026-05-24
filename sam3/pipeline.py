@@ -140,10 +140,56 @@ _SAM3 = None  # type: ignore[var-annotated]
 _MATANYONE = None  # type: ignore[var-annotated]
 
 
+_HF_TOKEN_FALLBACK_PATHS = (
+    "/runpod-volume/.hf_token",
+    "/workspace/.hf_token",
+    "/etc/hf_token",
+)
+
+
+def _ensure_hf_login() -> None:
+    """Force huggingface_hub to authenticate even if RunPod env var injection
+    failed to propagate HF_TOKEN to the worker process.
+
+    Resolution order:
+      1. `HF_TOKEN` env var
+      2. `/runpod-volume/.hf_token` (provisioned via RunPod S3 API)
+      3. `/workspace/.hf_token`
+      4. `/etc/hf_token`
+    """
+    token = os.environ.get("HF_TOKEN")
+    if not token:
+        from pathlib import Path
+        for p in _HF_TOKEN_FALLBACK_PATHS:
+            try:
+                t = Path(p).read_text().strip()
+                if t:
+                    token = t
+                    log.info("loaded HF token from fallback file %s", p)
+                    break
+            except Exception:  # noqa: BLE001
+                continue
+    if not token:
+        raise PipelineFailure(
+            "ERR_MODEL_LOAD_FAILED",
+            "HF_TOKEN missing from env and all fallback files "
+            f"({list(_HF_TOKEN_FALLBACK_PATHS)})",
+        )
+    os.environ["HF_TOKEN"] = token
+    os.environ.setdefault("HUGGING_FACE_HUB_TOKEN", token)
+    try:
+        from huggingface_hub import login
+        login(token=token, add_to_git_credential=False)
+        log.info("hf login OK (token len=%d)", len(token))
+    except Exception as e:  # noqa: BLE001
+        log.warning("hf login failed (non-fatal): %s", e)
+
+
 def _load_sam3() -> Any:
     global _SAM3
     if _SAM3 is not None:
         return _SAM3
+    _ensure_hf_login()
     try:
         from sam3.model_builder import build_sam3_video_predictor
     except ImportError as e:
@@ -163,6 +209,7 @@ def _load_matanyone() -> Any:
     global _MATANYONE
     if _MATANYONE is not None:
         return _MATANYONE
+    _ensure_hf_login()
     try:
         from matanyone import InferenceCore
     except ImportError as e:
