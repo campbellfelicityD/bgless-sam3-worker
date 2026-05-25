@@ -19,9 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Lowercase owner
+      - name: Compute owner + short SHA
         id: vars
-        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -41,5 +43,6 @@ jobs:
           tags: |
             ghcr.io/${{ steps.vars.outputs.owner }}/bgless-sam3:latest
             ghcr.io/${{ steps.vars.outputs.owner }}/bgless-sam3:${{ github.sha }}
+            ghcr.io/${{ steps.vars.outputs.owner }}/bgless-sam3:${{ steps.vars.outputs.short_sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
