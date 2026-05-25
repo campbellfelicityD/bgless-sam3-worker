@@ -113,6 +113,24 @@ def _download(url: str, dest: Path) -> None:
         raise PipelineFailure("ERR_DOWNLOAD_FAILED", str(e)) from e
 
 
+def _resample_to_24fps(src: Path, dest: Path) -> Path:
+    """Re-encode src to 24fps writing to dest, return dest."""
+    cmd = [
+        "ffmpeg", "-y", "-i", str(src),
+        "-r", "24",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20",
+        "-an",  # MatAnyone doesn't need audio; we re-attach from original later if needed
+        str(dest),
+    ]
+    p = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    if p.returncode != 0:
+        raise PipelineFailure(
+            "ERR_FFMPEG_ENCODE_FAILED",
+            f"24fps normalization failed: {p.stderr[-800:]}",
+        )
+    return dest
+
+
 def _maybe_trim_to_preview(src: Path, dest: Path, preview_seconds: float) -> Path:
     """If preview=True, transcode the first preview_seconds to dest and return dest;
     otherwise return src unchanged."""
@@ -357,6 +375,21 @@ def run_pipeline(inp: HandlerInput) -> HandlerOutput:
                 final_src = _maybe_trim_to_preview(
                     src_path, workdir / "preview.mp4", inp.preview_duration
                 )
+
+        # 1c. Normalize frame rate to 24fps when MatAnyone is requested.
+        # MatAnyone's internal patch grid is sized assuming 24fps temporal
+        # batching; non-24fps inputs trigger tensor shape mismatches like
+        # `Sizes of tensors must match... Expected 40 but got 120` deep inside
+        # process_video(). Resampling to 24fps avoids the failure with no
+        # observable quality cost (matting model is not actually looking at
+        # wall-clock fps, just frame-to-frame correspondence).
+        if inp.refine.matting_model == "matanyone" and inp.model != "sam3-tiny":
+            from encoder import probe_dimensions as _probe
+            _, _, _src_fps, _ = _probe(final_src)
+            if _src_fps and abs(_src_fps - 24.0) > 0.05:
+                with timings.time("fps_normalize"):
+                    final_src = _resample_to_24fps(final_src, workdir / "normalized.mp4")
+                    log.info("normalized %.3ffps -> 24fps", _src_fps)
 
         # Probe source for output metadata + audio passthrough decision
         from encoder import has_audio_stream, probe_dimensions, encode
